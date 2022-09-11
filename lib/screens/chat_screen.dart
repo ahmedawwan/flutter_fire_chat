@@ -1,6 +1,7 @@
 import 'dart:developer';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flash_chat_flutter/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
@@ -15,7 +16,9 @@ class ChatScreen extends StatefulWidget {
 }
 
 class ChatScreenState extends State<ChatScreen> {
+  final TextEditingController messageController = TextEditingController();
   final _auth = FirebaseAuth.instance;
+  final firestore = FirebaseFirestore.instance;
   dynamic currentUser;
 
   @override
@@ -35,6 +38,27 @@ class ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void sendMessage() {
+    try {
+      if (messageController.text.isNotEmpty) {
+        firestore.collection('messages').add({
+          'message': messageController.text.trim(),
+          'sender': _auth.currentUser?.email,
+        }).then((value) => messageController.clear());
+      }
+    } catch (e) {
+      log(e.toString());
+    }
+  }
+
+  void getMessages() async {
+    await for (var snapshots in firestore.collection('messages').snapshots()) {
+      for (var snapshot in snapshots.docs) {
+        log(snapshot['message'].toString());
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,45 +66,75 @@ class ChatScreenState extends State<ChatScreen> {
         leading: null,
         actions: <Widget>[
           IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                //Implement logout functionality
-              }),
+            icon: const Icon(Icons.refresh),
+            onPressed: getMessages,
+          )
         ],
         title: const Text('⚡️Chat'),
         backgroundColor: Colors.lightBlueAccent,
       ),
       body: SafeArea(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Container(
-              decoration: kMessageContainerDecoration,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      onChanged: (value) {
-                        //Do something with the user input.
-                      },
-                      decoration: kMessageTextFieldDecoration,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height -
+              (MediaQuery.of(context).padding.top + kToolbarHeight),
+          width: MediaQuery.of(context).size.width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              StreamBuilder<QuerySnapshot>(
+                stream: firestore.collection('messages').snapshots(),
+                builder: (context, snapshots) {
+                  if (!snapshots.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+                  final messages = snapshots.data?.docs;
+                  List<Messagebubble> messageWidgets = [];
+                  for (QueryDocumentSnapshot<Object?> message in messages!) {
+                    messageWidgets.add(
+                      Messagebubble(
+                        message: message['message'],
+                        sender: message['sender'],
+                      ),
+                    );
+                  }
+                  return Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 20),
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      children: messageWidgets,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      //Implement send functionality.
-                    },
-                    child: const Text(
-                      'Send',
-                      style: kSendButtonTextStyle,
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
-          ],
+              Container(
+                decoration: kMessageContainerDecoration,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: TextField(
+                        controller: messageController,
+                        decoration: kMessageTextFieldDecoration,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: sendMessage,
+                      child: const Text(
+                        'Send',
+                        style: kSendButtonTextStyle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

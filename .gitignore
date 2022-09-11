@@ -21,6 +21,15 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
+
+# folder to ignore
+windows/
+macos/
+linux/
+web/
+ios/
+android/
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -46,10 +55,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# folder to ignore
-windows/
-macos/
-linux/
-web/
-ios/
-android/
+#files to ignore
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+
+
+
