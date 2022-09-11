@@ -41,9 +41,13 @@ class ChatScreenState extends State<ChatScreen> {
   void sendMessage() {
     try {
       if (messageController.text.isNotEmpty) {
+        var time = DateTime.now();
         firestore.collection('messages').add({
           'message': messageController.text.trim(),
           'sender': _auth.currentUser?.email,
+          'time':
+              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+          'format': time.toString(),
         }).then((value) => messageController.clear());
       }
     } catch (e) {
@@ -52,7 +56,10 @@ class ChatScreenState extends State<ChatScreen> {
   }
 
   void getMessages() async {
-    await for (var snapshots in firestore.collection('messages').snapshots()) {
+    await for (var snapshots in firestore
+        .collection('messages')
+        .orderBy('format', descending: false)
+        .snapshots()) {
       for (var snapshot in snapshots.docs) {
         log(snapshot['message'].toString());
       }
@@ -84,7 +91,10 @@ class ChatScreenState extends State<ChatScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               StreamBuilder<QuerySnapshot>(
-                stream: firestore.collection('messages').snapshots(),
+                stream: firestore
+                    .collection('messages')
+                    .orderBy('format', descending: false)
+                    .snapshots(),
                 builder: (context, snapshots) {
                   if (!snapshots.hasData) {
                     return const Center(
@@ -98,6 +108,8 @@ class ChatScreenState extends State<ChatScreen> {
                       Messagebubble(
                         message: message['message'],
                         sender: message['sender'],
+                        isSender: currentUser.email == message['sender'],
+                        time: message['time'],
                       ),
                     );
                   }
