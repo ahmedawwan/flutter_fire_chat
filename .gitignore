@@ -51,3 +51,7 @@ windows/
 macos/
 linux/
 web/
+
+# files to ignore
+/google-services.json
+/GoogleService-Info.plist
